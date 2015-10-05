@@ -1,0 +1,69 @@
+<link rel="import" href="dc-import.html" />
+<dom-module id="dc-pie-chart-example">
+    <link rel="stylesheet" href="../../bower_components/dcjs/dc.css">
+    <template>
+        <div id="chartWrapper">
+            <div id="types-sold-pie">
+                <a class="reset">Reset</a>
+                <div class="clearfix"></div>
+            </div>
+        </div>
+    </template>
+</dom-module>
+<script>
+    Polymer({
+        is: "dc-pie-chart-example",
+        properties: {
+            height: {
+                type: Number,
+                reflectToAttribute: true
+            }
+        },
+        resize: function() {
+            var newWidth = document.getElementById('chartWrapper').offsetWidth;
+            this.width(newWidth).transitionDuration(0);
+            this.render();
+            this.transitionDuration(750);
+        },
+        ready: function () {
+            var self = this;
+            d3.csv("pizza_data.csv", function (data) {
+                data.forEach(function (d) {
+//                    d.date = parseDate(d.date);
+                    d.items_sold = +d.items_sold;
+                    d.items_returned = +d.items_returned;
+                });
+
+                var ndx = crossfilter(data);
+
+                var typeDimension = ndx.dimension(function (d) {
+                    return d.pizza_type;
+                });
+                var soldByTypeGroup = typeDimension.group().reduceSum(function (d) {
+                    return d.items_sold;
+                });
+                var width = document.getElementById('chartWrapper').offsetWidth;
+
+                var itemsSoldPieChart = dc.pieChart("#types-sold-pie");
+                itemsSoldPieChart
+                        .width(width)
+                        .height(self.height)
+                        .dimension(typeDimension)
+                        .group(soldByTypeGroup, "Types sold")
+                        .innerRadius(40);
+
+                d3.select("#types-sold-pie").select("a.reset").on('click', function () {
+                    itemsSoldPieChart.filterAll();
+                    dc.redrawAll();
+                });
+
+                itemsSoldPieChart.render();
+                window.addEventListener('resize', self.resize.bind(itemsSoldPieChart));
+            });
+        },
+        detached: function() {
+            window.removeEventListener('resize', this.resize);
+            d3.select("#types-sold-pie").select("a.reset").on('click', null);
+        }
+    });
+</script>

@@ -1,0 +1,78 @@
+<link rel="import" href="dc-import.html" />
+<dom-module id="dc-line-chart-example">
+    <link rel="stylesheet" href="../../bower_components/dcjs/dc.css">
+    <template>
+        <div id="chartWrapper">
+            <div id="items-sold">
+                <a class="reset">Reset</a>
+                <div class="clearfix"></div>
+            </div>
+        </div>
+    </template>
+</dom-module>
+<script>
+    Polymer({
+        is: "dc-line-chart-example",
+        properties: {
+            height: {
+                type: Number,
+                reflectToAttribute: true
+            }
+        },
+        resize: function() {
+            var newWidth = document.getElementById('chartWrapper').offsetWidth;
+            this.width(newWidth).transitionDuration(0);
+            this.render();
+            this.transitionDuration(750);
+        },
+        ready: function () {
+            var self = this;
+            var parseDate = d3.time.format("%d/%m/%Y").parse;
+            d3.csv("pizza_data.csv", function (data) {
+                data.forEach(function (d) {
+                    d.date = parseDate(d.date);
+                    d.items_sold = +d.items_sold;
+                    d.items_returned = +d.items_returned;
+                });
+
+                var ndx = crossfilter(data);
+    
+                var dateDimension = ndx.dimension(function (d) {
+                    return d.date;
+                });
+                var soldByDateGroup = dateDimension.group().reduceSum(function (d) {
+                    return d.items_sold;
+                });
+                var width = document.getElementById('chartWrapper').offsetWidth;
+                
+                var itemsSoldChart = dc.lineChart("#items-sold");
+                itemsSoldChart
+                        .width(width)
+                        .height(self.height)
+                        .margins({top: 10, right: 50, bottom: 40, left: 50})
+                        .dimension(dateDimension)
+                        .group(soldByDateGroup, "Items sold")
+                        .x(d3.time.scale())
+                        .elasticX(true)
+                        .elasticY(true)
+                        .renderHorizontalGridLines(true)
+                        .legend(dc.legend().x(70).y(10).itemHeight(13).gap(5))
+                        .xAxisLabel("Date")
+                        .yAxisLabel("Items sold")
+                        .xAxis().tickFormat(d3.time.format("%d/%m/%Y"));
+
+                d3.select("#items-sold").select("a.reset").on('click', function () {
+                    itemsSoldChart.filterAll();
+                    dc.redrawAll();
+                });
+                
+                itemsSoldChart.render();
+                window.addEventListener('resize', self.resize.bind(itemsSoldChart));
+            });
+        },
+        detached: function() {
+            window.removeEventListener('resize', this.resize);
+            d3.select("#items-sold").select("a.reset").on('click', null);
+        }
+    });
+</script>

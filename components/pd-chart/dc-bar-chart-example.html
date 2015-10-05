@@ -1,0 +1,77 @@
+<link rel="import" href="dc-import.html" />
+<dom-module id="dc-bar-chart-example">
+    <link rel="stylesheet" href="../../bower_components/dcjs/dc.css">
+    <template>
+        <div id="chartWrapper">
+            <div id="types-sold-bar">
+                <a class="reset">Reset</a>
+                <div class="clearfix"></div>
+            </div>
+        </div>
+    </template>
+</dom-module>
+<script>
+    Polymer({
+        is: "dc-bar-chart-example",
+        properties: {
+            height: {
+                type: Number,
+                reflectToAttribute: true
+            }
+        },
+        resize: function() {
+            var newWidth = document.getElementById('chartWrapper').offsetWidth;
+            this.width(newWidth).transitionDuration(0);
+            this.render();
+            this.transitionDuration(750);
+        },
+        ready: function () {
+            var self = this;
+            d3.csv("pizza_data.csv", function (data) {
+                data.forEach(function (d) {
+//                    d.date = parseDate(d.date);
+                    d.items_sold = +d.items_sold;
+                    d.items_returned = +d.items_returned;
+                });
+
+                var ndx = crossfilter(data);
+
+                var typeDimension = ndx.dimension(function (d) {
+                    return d.pizza_type;
+                });
+                var soldByTypeGroup = typeDimension.group().reduceSum(function (d) {
+                    return d.items_sold;
+                });
+                var width = document.getElementById('chartWrapper').offsetWidth;
+
+                var itemsSoldByTypeChart = dc.barChart("#types-sold-bar");
+                itemsSoldByTypeChart
+                        .width(width)
+                        .height(self.height)
+                        .margins({top: 10, right: 50, bottom: 40, left: 50})
+                        .dimension(typeDimension)
+                        .group(soldByTypeGroup, "Types sold")
+                        .x(d3.scale.ordinal())
+                        .xUnits(dc.units.ordinal)
+                        .elasticX(true)
+                        .elasticY(true)
+                        .renderHorizontalGridLines(true)
+                        .legend(dc.legend().x(70).y(10).itemHeight(13).gap(5))
+                        .xAxisLabel("Pizza type")
+                        .yAxisLabel("Items sold");
+
+                d3.select("#types-sold-bar").select("a.reset").on('click', function () {
+                    itemsSoldByTypeChart.filterAll();
+                    dc.redrawAll();
+                });
+
+                itemsSoldByTypeChart.render();
+                window.addEventListener('resize', self.resize.bind(itemsSoldByTypeChart));
+            });
+        },
+        detached: function() {
+            window.removeEventListener('resize', this.resize);
+            d3.select("#types-sold-bar").select("a.reset").on('click', null);
+        }
+    });
+</script>
